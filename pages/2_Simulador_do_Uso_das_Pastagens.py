@@ -354,11 +354,9 @@ if st.session_state["simulacoes_salvas"]:
         st.markdown("### 🗺️ 4. Mapa Visual em Imagem de Satélite")
         
         # Melhoria: Procura dinamicamente a pasta nos arredores do script. Se não achar, volta pro padrão absoluto.
-        pasta_mapas_relativa = os.path.join(os.path.dirname(__file__), "mapas") if '__file__' in locals() else "mapas"
-        if os.path.exists(pasta_mapas_relativa):
-            pasta_mapas = pasta_mapas_relativa
-        else:
-            pasta_mapas = r"C:\Users\e_ale\Downloads\ProjetoNovo\mapas"
+       
+        # Busca a pasta 'mapas' na mesma raiz do seu script, não importa onde ele esteja
+pasta_mapas = os.path.join(os.path.dirname(os.path.abspath(__file__)), "mapas")
             
         caminho_completo_mapa = os.path.join(pasta_mapas, f"{fazenda_base.upper()}.geojson")
 
