@@ -280,31 +280,14 @@ if st.session_state["simulacoes_salvas"]:
         texto_wa += "```"
         link_whatsapp = f"https://wa.me/?text={urllib.parse.quote(texto_wa)}"
 
-        # Construção otimizada do relatório HTML com estilo Paisagem (Landscape)
-        linhas_tabela = ""
-        for idx, row in df_editado.iterrows():
-            linhas_tabela += f"""
-                <tr>
-                    <td>{row['Módulo']}</td>
-                    <td>{row['Divisões']}</td>
-                    <td>{fmt_br(row['Área (ha)'], 2)}</td>
-                    <td>{row['Data Início']} - {row['Data Fim']}</td>
-                    <td>{row['Dias']}</td>
-                    <td>{fmt_br(row['UA Total'], 1)}</td>
-                    <td>{row['Cabeças']}</td>
-                    <td>{fmt_br(row['TL (UA/ha)'], 2)}</td>
-                </tr>
-            """
-
         html_pdf_base = f"""
         <html>
         <head>
             <style>
-                @page {{ size: landscape; margin: 15mm; }}
-                body {{ font-family: Arial, sans-serif; margin: 20px; }}
-                h2 {{ color: #1B4332; border-bottom: 2px solid #2D6A4F; padding-bottom: 8px; font-size: 18px; }}
-                table {{ width: 100%; border-collapse: collapse; margin-top: 10px; margin-bottom: 20px; table-layout: fixed; }}
-                th, td {{ border: 1px solid #DDD; padding: 8px; text-align: center; font-size: 12px; word-wrap: break-word; }}
+                body {{ font-family: Arial, sans-serif; margin: 30px; }}
+                h2 {{ color: #1B4332; border-bottom: 2px solid #2D6A4F; padding-bottom: 8px; }}
+                table {{ width: 100%; border-collapse: collapse; margin-top: 15px; }}
+                th, td {{ border: 1px solid #DDD; padding: 10px; text-align: center; }}
                 th {{ background-color: #2D6A4F; color: white; }}
                 tr:nth-child(even) {{ background-color: #F9F9F9; }}
             </style>
@@ -315,112 +298,170 @@ if st.session_state["simulacoes_salvas"]:
                 <tr>
                     <th>Módulo</th><th>Divisões</th><th>Área (ha)</th><th>Período</th><th>Dias</th><th>UA Total</th><th>Cabeças</th><th>TL (UA/ha)</th>
                 </tr>
-                {linhas_tabela}
-            </table>
         """
+        for idx, row in df_editado.iterrows():
+            html_pdf_base += f"""
+                <tr>
+                    <td>{row['Módulo']}</td><td>{row['Divisões']}</td><td>{fmt_br(row['Área (ha)'], 2)}</td>
+                    <td>{row['Data Início']} - {row['Data Fim']}</td><td>{row['Dias']}</td>
+                    <td>{fmt_br(row['UA Total'], 1)}</td><td>{row['Cabeças']}</td><td>{fmt_br(row['TL (UA/ha)'], 2)}</td>
+                </tr>
+            """
         
-        # html_pdf final usado para o botão "Baixar Relatório"
-        html_pdf = html_pdf_base + "</body></html>"
+        html_pdf = html_pdf_base + "</table></body></html>"
 
         # =====================================================
-        # BOTÕES DE AÇÃO (CORRIGIDO COM KEYS EXCLUSIVAS)
+        # BOTÕES DE AÇÃO
         # =====================================================
         col_wa, col_pdf, col_pdf_comp, col_limpar = st.columns([1.5, 1, 1, 1])
         with col_wa:
             st.markdown(f'<a href="{link_whatsapp}" target="_blank"><button style="width:100%; background-color:#25D366; color:white; padding:10px; border:none; border-radius:4px; font-weight:bold; cursor:pointer;">💬 Enviar via WhatsApp</button></a>', unsafe_allow_html=True)
             
         with col_pdf:
-            st.download_button(
-                label="📄 Baixar Relatório", 
-                data=html_pdf, 
-                file_name=f"planejamento_{fazenda_base.lower()}.html", 
-                mime="text/html", 
-                use_container_width=True,
-                key=f"btn_pdf_simples_{fazenda_base.lower()}"  # ID Único para evitar o erro
-            )
+            st.download_button("📄 Baixar Relatório", data=html_pdf, file_name=f"planejamento_{fazenda_base.lower()}.html", mime="text/html", use_container_width=True)
             
         with col_pdf_comp:
+            # Melhoria na injeção de parâmetros adicionais de forma limpa e isolada
             html_pdf_completo = html_pdf_base + f"""
             </table>
-            <br><br>
+            <br>
             <h2>Parâmetros e Indicadores do Lote</h2>
-            <table>
-                <tr>
-                    <th>Massa Final Desejada</th>
-                    <th>Taxa de Acúmulo</th>
-                    <th>Consumo Matéria Seca (cMS)</th>
-                    <th>Ofertado (n)</th>
-                    <th>Oferta de Forragem</th>
-                    <th>Peso Início</th>
-                    <th>GMD</th>
-                    <th>Peso Médio do Lote</th>
-                </tr>
-                <tr>
-                    <td>{fmt_br(massa_final, 0)} kg MS/ha</td>
-                    <td>{fmt_br(taxa_acumulo, 1)} kg MS/ha/dia</td>
-                    <td>{fmt_br(cms, 1)} %PV</td>
-                    <td>{fmt_br(ofertado, 1)}</td>
-                    <td>{fmt_br(oferta, 1)} %PV</td>
-                    <td>{fmt_br(peso_inicio, 0)} kg</td>
-                    <td>{fmt_br(gmd, 2)} kg/dia</td>
-                    <td>{fmt_br(peso_medio, 2)} kg</td>
-                </tr>
-            </table>
+            <ul>
+                <li><b>Massa Final Desejada:</b> {fmt_br(massa_final, 0)} kg MS/ha</li>
+                <li><b>Taxa de Acúmulo:</b> {fmt_br(taxa_acumulo, 1)} kg MS/ha/dia</li>
+                <li><b>Consumo de Matéria Seca (cMS):</b> {fmt_br(cms, 1)} %PV</li>
+                <li><b>Ofertado (n):</b> {fmt_br(ofertado, 1)}</li>
+                <li><b>Oferta de Forragem:</b> {fmt_br(oferta, 1)} %PV</li>
+                <li><b>Peso Início:</b> {fmt_br(peso_inicio, 0)} kg</li>
+                <li><b>GMD:</b> {fmt_br(gmd, 2)} kg/dia</li>
+                <li><b>Peso Médio do Lote:</b> {fmt_br(peso_medio, 2)} kg</li>
+            </ul>
             </body>
             </html>
             """
-            st.download_button(
-                label="📊 Relatório Completo", 
-                data=html_pdf_completo, 
-                file_name=f"relatorio_completo_{fazenda_base.lower()}.html", 
-                mime="text/html", 
-                use_container_width=True,
-                key=f"btn_pdf_completo_{fazenda_base.lower()}"  # ID Único para evitar o erro
-            )
+            st.download_button("📊 Relatório Completo", data=html_pdf_completo, file_name=f"relatorio_completo_{fazenda_base.lower()}.html", mime="text/html", use_container_width=True)
             
         with col_limpar:
-            if st.button("🗑️ Limpar Toda a Tabela Temporária", use_container_width=True, key=f"btn_limpar_{fazenda_base.lower()}"):
+            if st.button("🗑️ Limpar Toda a Tabela Temporária", use_container_width=True):
                 st.session_state["simulacoes_salvas"] = [s for s in st.session_state["simulacoes_salvas"] if s["Fazenda"] != fazenda_base]
                 st.rerun()
 
-
-# =====================================================
-# 4. MAPA VISUAL (CORREÇÃO DE CAMINHO UNIVERSAL)
-# =====================================================
-st.markdown("---")
-st.markdown("### 🗺️ 4. Mapa Visual em Imagem de Satélite")
-
-# 1. Define o diretório base do script atual
-diretorio_atual = os.path.dirname(os.path.abspath(__file__))
-
-# 2. Constrói o caminho para a pasta 'mapas' (que está na raiz do projeto)
-# Se o script está em /pages, subimos um nível para encontrar 'mapas'
-pasta_mapas = os.path.abspath(os.path.join(diretorio_atual, "..", "mapas"))
-
-# 3. Define o caminho do arquivo com base na fazenda selecionada
-# Importante: Garantir que fazenda_base existe. Se for nula, usamos um padrão.
-fazenda_alvo = fazenda_base if 'fazenda_base' in locals() else "UIRAPURU"
-caminho_completo_mapa = os.path.join(pasta_mapas, f"{fazenda_alvo.upper()}.geojson")
-
-if FOLIUM_DISPONIVEL:
-    if os.path.exists(caminho_completo_mapa):
-        try:
-            with open(caminho_completo_mapa, "r", encoding="utf-8") as f:
-                dados_geojson = json.load(f)
-            
-            # (Aqui mantém a sua lógica de renderização folium que já funcionava)
-            m = folium.Map(location=[-15.0, -50.0], zoom_start=14, tiles=None)
-            folium.TileLayer(
-                tiles='https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-                attr='Esri', name='Satélite'
-            ).add_to(m)
-            folium.GeoJson(dados_geojson).add_to(m)
-            st_folium(m, width=1300, height=550)
-        except Exception as e:
-            st.error(f"Erro ao processar o arquivo geojson: {e}")
-    else:
-        st.warning(f"O arquivo não foi encontrado no servidor.")
-        st.info(f"Caminho esperado: {caminho_completo_mapa}")
-else:
-    st.error("Biblioteca folium não encontrada.")
+        # =====================================================
+        # 4. MAPA VISUAL PURO (ERRADICAÇÃO DO ÍCONE "MARK" QUEBRADO)
+        # =====================================================
+        st.markdown("---")
+        st.markdown("### 🗺️ 4. Mapa Visual em Imagem de Satélite")
         
+        # Melhoria: Procura dinamicamente a pasta nos arredores do script. Se não achar, volta pro padrão absoluto.
+        pasta_mapas_relativa = os.path.join(os.path.dirname(__file__), "mapas") if '__file__' in locals() else "mapas"
+        if os.path.exists(pasta_mapas_relativa):
+            pasta_mapas = pasta_mapas_relativa
+        else:
+            pasta_mapas = r"C:\Users\e_ale\Downloads\ProjetoNovo\mapas"
+            
+        caminho_completo_mapa = os.path.join(pasta_mapas, f"{fazenda_base.upper()}.geojson")
+
+        if FOLIUM_DISPONIVEL:
+            if os.path.exists(caminho_completo_mapa):
+                try:
+                    with open(caminho_completo_mapa, "r", encoding="utf-8") as f:
+                        dados_geojson = json.load(f)
+                    
+                    feicoes_limpas = []
+                    coordenadas = []
+                    
+                    for feature in dados_geojson.get('features', []):
+                        geom = feature.get('geometry', {})
+                        tipo_geom = geom.get('type')
+                        
+                        if tipo_geom in ['Polygon', 'MultiPolygon']:
+                            feicoes_limpas.append(feature)
+                            
+                            if tipo_geom == 'Polygon':
+                                for coord in geom['coordinates'][0]:
+                                    coordenadas.append([coord[1], coord[0]])
+                            elif tipo_geom == 'MultiPolygon':
+                                for poly in geom['coordinates']:
+                                    for coord in poly[0]:
+                                        coordenadas.append([coord[1], coord[0]])
+                    
+                    dados_geojson['features'] = feicoes_limpas
+
+                    # Melhoria: Proteção robusta contra divisões vazias/erros no cálculo das médias do centro do mapa
+                    if coordenadas and len(coordenadas) > 0:
+                        centro_mapa = [float(np.mean([c[0] for c in coordenadas])), float(np.mean([c[1] for c in coordenadas]))]
+                    else:
+                        centro_mapa = [-10.0, -50.0]
+
+                    m = folium.Map(location=centro_mapa, zoom_start=14, tiles=None)
+                    
+                    # Camada Base Satélite
+                    folium.TileLayer(
+                        tiles='https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+                        attr='Esri',
+                        name='Satélite',
+                        overlay=False,
+                        control=True
+                    ).add_to(m)
+
+                    def estilo_modulo(feature):
+                        nome_div_mapa = str(feature['properties'].get('Divisao') or feature['properties'].get('name') or "").strip()
+                        if nome_div_mapa in divisoes_ja_simuladas:
+                            return {'fillColor': '#22C55E', 'color': '#FFFFFF', 'fillOpacity': 0.4, 'weight': 2}
+                        return {'fillColor': '#EF4444', 'color': '#FFFFFF', 'fillOpacity': 0.2, 'weight': 1}
+
+                    folium.GeoJson(dados_geojson, style_function=estilo_modulo).add_to(m)
+
+                    # Inserção das Caixas Pretas Ampliadas nos Centros dos Piquetes
+                    for feature in dados_geojson['features']:
+                        nome_div_mapa = str(feature['properties'].get('Divisao') or feature['properties'].get('name') or "").strip()
+                        geom = feature['geometry']
+                        
+                        lat_p, lon_p = None, None
+                        
+                        # Melhoria: Processamento estendido para capturar centros de MultiPolygon também!
+                        if geom['type'] == 'Polygon':
+                            pts = geom['coordinates'][0]
+                            lat_p = np.mean([p[1] for p in pts])
+                            lon_p = np.mean([p[0] for p in pts])
+                        elif geom['type'] == 'MultiPolygon':
+                            # Extrai os pontos estruturais do primeiro polígono contido no agrupamento
+                            pts = geom['coordinates'][0][0]
+                            lat_p = np.mean([p[1] for p in pts])
+                            lon_p = np.mean([p[0] for p in pts])
+                            
+                        if lat_p is not None and lon_p is not None:
+                            html_texto_puro = f'''
+                            <div style="
+                                font-family: Arial, sans-serif;
+                                font-size: 11px; 
+                                font-weight: bold; 
+                                color: white; 
+                                background-color: rgba(0,0,0,0.85); 
+                                padding: 4px 10px; 
+                                min-width: 32px;
+                                border-radius: 4px; 
+                                border: 1px solid #ffffff; 
+                                text-align: center;
+                                white-space: nowrap;
+                                transform: translate(-50%, -50%);
+                            ">{nome_div_mapa}</div>
+                            '''
+                            
+                            folium.Marker(
+                                location=[lat_p, lon_p],
+                                icon=folium.DivIcon(
+                                    html=html_texto_puro,
+                                    icon_size=(0, 0),
+                                    icon_anchor=(0, 0)
+                                )
+                            ).add_to(m)
+
+                    if coordenadas:
+                        m.fit_bounds(coordenadas)
+
+                    st_folium(m, width=1300, height=550, returned_objects=[])
+                except Exception as e:
+                    st.error(f"Erro ao processar o mapa: {e}")
+            else:
+                st.warning(f"Arquivo não localizado em: {caminho_completo_mapa}")
