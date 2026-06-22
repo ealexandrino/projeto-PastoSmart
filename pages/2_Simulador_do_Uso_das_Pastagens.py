@@ -184,6 +184,7 @@ if not df_filtrado.empty:
         
         if d_area > 0:
             producao_por_ha = taxa_acumulo * periodo_dias
+            massa_inicial_ponderada = massa_vezes_area / total_area_bloco
             massa_teto = d_massa_ini + producao_por_ha
             perfil_pastejo = max(0.0, massa_teto - massa_final)
             desaparecimento_periodo_ua = (450 * (oferta / 100)) * periodo_dias
