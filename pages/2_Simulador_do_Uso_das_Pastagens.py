@@ -5,6 +5,8 @@ from datetime import date, timedelta
 import urllib.parse
 import json
 import os
+
+# Tenta importar folium para o mapa GeoJSON
 try:
     import folium
     from streamlit_folium import st_folium
@@ -12,90 +14,195 @@ try:
 except ImportError:
     FOLIUM_DISPONIVEL = False
 
-st.set_page_config(page_title="Planejamento das Pastagens", page_icon="📈", layout="wide")
+# =====================================================
+# CONFIGURAÇÃO DA PÁGINA
+# =====================================================
+st.set_page_config(
+    page_title="Planejamento das Pastagens",
+    page_icon="📈",
+    layout="wide"
+)
 
-if "simulacoes_salvas" not in st.session_state: st.session_state["simulacoes_salvas"] = []
-if "contador_filtros" not in st.session_state: st.session_state["contador_filtros"] = 0
+# =====================================================
+# INICIALIZAÇÃO DA MEMÓRIA TEMPORÁRIA
+# =====================================================
+if "simulacoes_salvas" not in st.session_state:
+    st.session_state["simulacoes_salvas"] = []
 
+if "contador_filtros" not in st.session_state:
+    st.session_state["contador_filtros"] = 0
+
+# =====================================================
+# CABEÇALHO
+# =====================================================
 st.title("📈 Planejamento das Pastagens")
+st.subheader("Simulador Métrico Completo - Com WhatsApp, PDF e Satélite")
 st.markdown("---")
 
+# =====================================================
+# GOOGLE SHEETS (LEITURA DE DADOS)
+# =====================================================
 SHEET_ID = "1DFy0jTJbv5Mv1n-KtJkTeUuz4uXNjp-khKhPZpQ1m6w"
 GID = "853924016"
 URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=csv&gid={GID}"
 
 @st.cache_data
 def carregar_dados():
-    df = pd.read_csv(URL).dropna(how="all")
+    df = pd.read_csv(URL)
+    df = df.dropna(how="all")
     df["Data avaliacao"] = pd.to_datetime(df["Data avaliacao"], format="%d/%m/%Y", errors="coerce")
-    df["Area util"] = pd.to_numeric(df["Area util"].astype(str).str.replace(",", "."), errors="coerce")
-    df["Massa seca"] = pd.to_numeric(df["Massa seca"].astype(str).str.replace(",", ""), errors="coerce")
+    df["Area util"] = df["Area util"].astype(str).str.strip().str.replace(",", ".", regex=False)
+    df["Area util"] = pd.to_numeric(df["Area util"], errors="coerce")
+    df["Massa seca"] = df["Massa seca"].astype(str).str.strip().str.replace(",", "", regex=False)
+    df["Massa seca"] = pd.to_numeric(df["Massa seca"], errors="coerce")
     return df
 
 df = carregar_dados()
 
 def fmt_br(valor, decimais=0):
-    return f"{valor:,.{decimais}f}".replace(",", "X").replace(".", ",").replace("X", ".")
+    formato = f",.{decimais}f"
+    texto = format(valor, formato)
+    return texto.replace(",", "X").replace(".", ",").replace("X", ".")
 
-fazenda_base = st.selectbox("Selecione a Fazenda Alvo:", sorted(df["Fazenda"].unique()))
-df_fazenda = df[df["Fazenda"] == fazenda_base]
+# =====================================================
+# 1. SELEÇÃO DA FAZENDA BASE
+# =====================================================
+st.markdown("### 1. Escolha a Fazenda para Iniciar o Planejamento")
+lista_todas_fazendas = sorted(df["Fazenda"].dropna().astype(str).unique())
+fazenda_base = st.selectbox("Selecione a Fazenda Alvo:", lista_todas_fazendas, key="fazenda_base_select")
 
-col_ret, col_mod, col_div = st.columns(3)
-retiros = st.multiselect("Retiros", df_fazenda["Retiro"].unique())
-modulos = st.multiselect("Módulos", df_fazenda["Modulo"].unique())
-divisoes = st.multiselect("Divisões", df_fazenda["Divisao"].unique())
+df_fazenda_atual = df[df["Fazenda"].astype(str) == fazenda_base]
+todas_divisoes_fazenda = set(df_fazenda_atual["Divisao"].dropna().astype(str).unique())
 
-df_filtrado = df_fazenda.copy()
-if retiros: df_filtrado = df_filtrado[df_filtrado["Retiro"].isin(retiros)]
-if modulos: df_filtrado = df_filtrado[df_filtrado["Modulo"].isin(modulos)]
-if divisoes: df_filtrado = df_filtrado[df_filtrado["Divisao"].isin(divisoes)]
+divisoes_ja_simuladas = set()
+for sim in st.session_state["simulacoes_salvas"]:
+    if sim["Fazenda"] == fazenda_base:
+        partes = [d.strip() for d in str(sim["Divisões"]).split(",") if d.strip()]
+        divisoes_ja_simuladas.update(partes)
 
-# PARÂMETROS
-col1, col2, col3, col4 = st.columns(4)
-massa_final = col1.number_input("Massa final (kg/ha)", value=3000)
-taxa_acumulo = col1.number_input("Taxa acúmulo (kg/ha/dia)", value=40.0)
-periodo_dias = col2.number_input("Dias", value=30)
-data_inicio = col2.date_input("Início", value=date.today())
-cms = col3.number_input("cMS (%PV)", value=2.5, format="%.1f")
-ofertado = col3.number_input("Ofertado (n)", value=4.0, format="%.1f")
-peso_inicio = col4.number_input("Peso início (kg)", value=450)
-gmd = col4.number_input("GMD (kg/dia)", value=0.60)
+# =====================================================
+# 2. FILTROS DA SIMULAÇÃO
+# =====================================================
+st.markdown("---")
+st.markdown("### ⚙️ 2. Filtrar Módulos / Divisões")
 
-# CÁLCULOS
-area_total = df_filtrado["Area util"].sum()
-massa_atual = (df_filtrado["Massa seca"] * df_filtrado["Area util"]).sum() / area_total if area_total > 0 else 0
+# Cálculo de progresso
+divisoes_restantes = todas_divisoes_fazenda - divisoes_ja_simuladas
+col_txt, col_prog = st.columns([1, 3])
+with col_txt:
+    st.markdown(f"**Progresso da Fazenda:**")
+    st.markdown(f"🗓️ Restam **{len(divisoes_restantes)}** de **{len(todas_divisoes_fazenda)}** divisões.")
+with col_prog:
+    progresso = (len(divisoes_ja_simuladas) / len(todas_divisoes_fazenda)) if todas_divisoes_fazenda else 0.0
+    st.progress(progresso)
 
-st.metric("Massa Atual (kg/ha)", fmt_br(massa_atual, 0))
+col_ret, col_mod, col_div, col_per = st.columns(4)
+sufixo_reset = f"_{st.session_state['contador_filtros']}"
 
-if st.button("➕ Adicionar Bloco"):
-    st.session_state["simulacoes_salvas"].append({
-        "Fazenda": fazenda_base, "Módulo": "Multi", "Divisões": "Multi", 
-        "Área (ha)": area_total, "Data Início": data_inicio.strftime("%d/%m/%Y"), 
-        "Data Fim": (data_inicio + timedelta(days=int(periodo_dias))).strftime("%d/%m/%Y"), 
-        "Dias": periodo_dias, "UA Total": 0, "Cabeças": 0, "TL (UA/ha)": 0
-    })
+with col_ret:
+    lista_retiros = sorted(df_fazenda_atual["Retiro"].dropna().astype(str).unique().tolist())
+    retiros_selecionados = st.multiselect("Retiros", options=lista_retiros, key=f"ret{sufixo_reset}")
+    df_f2 = df_fazenda_atual[df_fazenda_atual["Retiro"].astype(str).isin(retiros_selecionados)] if retiros_selecionados else df_fazenda_atual.copy()
+
+with col_mod:
+    lista_modulos = sorted(df_f2["Modulo"].dropna().astype(str).unique().tolist())
+    modulos_selecionados = st.multiselect("Módulos", options=lista_modulos, key=f"mod{sufixo_reset}")
+    df_f3 = df_f2[df_f2["Modulo"].astype(str).isin(modulos_selecionados)] if modulos_selecionados else df_f2.copy()
+
+# Controle de duplicação
+ja_contem_duplicada = False
+divisoes_conflitantes = []
+
+with col_div:
+    lista_divisoes = sorted(df_f3["Divisao"].dropna().astype(str).unique().tolist())
+    divisoes_selecionadas = st.multiselect("Divisões específicas", options=lista_divisoes, key=f"div{sufixo_reset}")
+    
+    divisoes_analisadas = divisoes_selecionadas if divisoes_selecionadas else lista_divisoes
+    for d in divisoes_analisadas:
+        if d in divisoes_ja_simuladas:
+            ja_contem_duplicada = True
+            divisoes_conflitantes.append(d)
+    
+    df_filtrado = df_f3[df_f3["Divisao"].astype(str).isin(divisoes_selecionadas)] if divisoes_selecionadas else df_f3.copy()
+
+with col_per:
+    periodo_opcao = st.selectbox("Período das Avaliações", ["Última avaliação", "Todas as avaliações"], key=f"per{sufixo_reset}")
+
+if ja_contem_duplicada:
+    st.error(f"⚠️ Atenção! O bloco contém divisões já simuladas: **{', '.join(divisoes_conflitantes)}**.")
+
+if periodo_opcao == "Última avaliação" and not df_filtrado.empty:
+    df_filtrado = df_filtrado.sort_values("Data avaliacao").groupby("Divisao", as_index=False).tail(1)
+
+# =====================================================
+# 3. PARÂMETROS E CÁLCULOS
+# =====================================================
+st.markdown("---")
+st.markdown("### 3. Ajustar Parâmetros do Lote")
+p1, p2, p3, p4 = st.columns(4)
+
+with p1:
+    massa_final = st.number_input("Massa final (kg/ha)", value=3000, key="mf_aj")
+    taxa_acumulo = st.number_input("Taxa de acúmulo (kg/ha/dia)", value=40.0, key="ta_aj")
+with p2:
+    periodo_dias = st.number_input("Dias", value=30, key="pd_aj")
+    data_inicio_sim = st.date_input("Data Início", value=date.today(), key="dt_ini_aj")
+    data_fim_calc = data_inicio_sim + timedelta(days=int(periodo_dias))
+with p3:
+    cms = st.number_input("cMS (%PV)", value=2.5, format="%.1f", key="cms_aj")
+    ofertado = st.number_input("Ofertado (n)", value=4.0, format="%.1f", key="of_aj")
+    oferta = cms * ofertado
+with p4:
+    peso_inicio = st.number_input("Peso início (kg)", value=450, key="pi_aj")
+    gmd = st.number_input("GMD (kg/dia)", value=0.60, format="%.2f", key="gmd_aj")
+    peso_medio = peso_inicio + (gmd * periodo_dias / 2)
+
+# CÁLCULOS DO BLOCO
+total_area_bloco, total_ua_bloco, total_cabecas_bloco, massa_vezes_area = 0.0, 0.0, 0.0, 0.0
+
+if not df_filtrado.empty:
+    for idx, row in df_filtrado.iterrows():
+        d_area = float(row["Area util"]) if pd.notnull(row["Area util"]) else 0.0
+        d_massa_ini = float(row["Massa seca"]) if pd.notnull(row["Massa seca"]) else 0.0
+        if d_area > 0:
+            producao_por_ha = taxa_acumulo * periodo_dias
+            massa_teto = d_massa_ini + producao_por_ha
+            perfil_pastejo = max(0.0, massa_teto - massa_final)
+            desaparecimento_periodo_ua = (450 * (oferta / 100)) * periodo_dias
+            d_ua_total = (perfil_pastejo / desaparecimento_periodo_ua * d_area) if desaparecimento_periodo_ua > 0 else 0.0
+            total_area_bloco += d_area
+            total_ua_bloco += d_ua_total
+            total_cabecas_bloco += (d_ua_total / (peso_medio / 450)) if peso_medio > 0 else 0.0
+            massa_vezes_area += (d_massa_ini * d_area)
+
+# EXIBIÇÃO DE INDICADORES
+m1, m2, m3, m4 = st.columns(4)
+with m1: st.metric("Área Total", f"{fmt_br(total_area_bloco, 2)} ha")
+with m2: st.metric("Capacidade (UA)", f"{fmt_br(total_ua_bloco, 1)} UA")
+with m3: st.metric("Total Cabeças", f"{fmt_br(total_cabecas_bloco, 0)} cab")
+with m4: st.metric("Produtividade", f"{fmt_br(total_cabecas_bloco * gmd * periodo_dias / total_area_bloco if total_area_bloco > 0 else 0, 1)} kg/ha")
+
+# BOTÃO ADICIONAR
+if st.button("➕ Adicionar Bloco", disabled=ja_contem_duplicada, use_container_width=True):
+    novo_bloco = {"Fazenda": fazenda_base, "Divisões": ", ".join(df_filtrado["Divisao"].astype(str).unique()), "Área (ha)": total_area_bloco, "UA Total": total_ua_bloco, "Cabeças": total_cabecas_bloco}
+    st.session_state["simulacoes_salvas"].append(novo_bloco)
+    st.session_state["contador_filtros"] += 1
     st.rerun()
 
-# TABELA E RELATÓRIO
+# TABELA E MAPA
 if st.session_state["simulacoes_salvas"]:
-    df_temp = pd.DataFrame(st.session_state["simulacoes_salvas"])
-    st.dataframe(df_temp)
-    
-    html_base = f"<html><head><style>@page{{size:landscape;}}</style></head><body><h2>Relatório {fazenda_base}</h2></body></html>"
-    c1, c2, c3 = st.columns(3)
-    c1.download_button("📄 Relatório", html_base, "relatorio.html", "text/html")
-    c2.download_button("📊 Completo", html_base, "completo.html", "text/html")
-    if c3.button("🗑️ Limpar"):
-        st.session_state["simulacoes_salvas"] = []
-        st.rerun()
+    st.dataframe(pd.DataFrame(st.session_state["simulacoes_salvas"]))
 
-# MAPA
 st.markdown("---")
-st.markdown("### 🗺️ Mapa Visual")
-caminho_mapa = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "mapas", f"{fazenda_base.upper()}.geojson")
-if os.path.exists(caminho_mapa):
+st.markdown("### 🗺️ 4. Mapa Visual")
+pasta_mapas = os.path.join(os.path.dirname(__file__), "mapas")
+caminho_mapa = os.path.join(pasta_mapas, f"{fazenda_base.upper()}.geojson")
+
+if FOLIUM_DISPONIVEL and os.path.exists(caminho_mapa):
+    with open(caminho_mapa, "r", encoding="utf-8") as f:
+        dados_geojson = json.load(f)
     m = folium.Map(location=[-10, -50], zoom_start=14)
-    with open(caminho_mapa, "r", encoding="utf-8") as f: folium.GeoJson(json.load(f)).add_to(m)
+    folium.GeoJson(dados_geojson).add_to(m)
     st_folium(m, width=1300, height=500)
 else:
     st.warning("Mapa não encontrado na pasta raiz/mapas")
