@@ -212,6 +212,7 @@ tl_cab_ha_bloco = total_cabecas_bloco / total_area_bloco if total_area_bloco > 0
 m1, m2, m3, m4 = st.columns(4)
 with m1:
     st.metric("Área Total do Bloco", f"{fmt_br(total_area_bloco, 2)} ha")
+    st.metric("Massa Inicial (Pond.)", f"{fmt_br(massa_inicial_ponderada, 0)} kg MS/ha")
     st.metric("Massa Teto Média", f"{fmt_br(massa_teto_ponderada, 0)} kg MS/ha")
 with m2:
     st.metric("Produção do Período", f"{fmt_br(producao_total_ha, 0)} kg MS/ha")
