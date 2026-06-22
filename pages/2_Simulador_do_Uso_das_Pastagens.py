@@ -346,16 +346,20 @@ if st.session_state["simulacoes_salvas"]:
                 st.session_state["simulacoes_salvas"] = [s for s in st.session_state["simulacoes_salvas"] if s["Fazenda"] != fazenda_base]
                 st.rerun()
 
-        # =====================================================
-        # 4. MAPA VISUAL PURO (CAMINHO RELATIVO)
+       # =====================================================
+        # 4. MAPA VISUAL PURO (CAMINHO CORRIGIDO PARA RAIZ)
         # =====================================================
         st.markdown("---")
         st.markdown("### 🗺️ 4. Mapa Visual em Imagem de Satélite")
         
-        # O código abaixo define o caminho da pasta 'mapas' na mesma pasta deste script
-        # Isso funcionará tanto no seu computador quanto no GitHub/Streamlit Cloud
-        pasta_mapas = os.path.join(os.path.dirname(os.path.abspath(__file__)), "mapas")
-            
+        # O script está em: /pages/2_Simulador...py
+        # Queremos chegar em: /mapas/
+        # __file__ retorna o caminho completo do script atual.
+        # os.path.dirname(os.path.dirname(__file__)) sobe dois níveis, chegando na raiz.
+        
+        pasta_raiz = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        pasta_mapas = os.path.join(pasta_raiz, "mapas")
+        
         caminho_completo_mapa = os.path.join(pasta_mapas, f"{fazenda_base.upper()}.geojson")
 
         if FOLIUM_DISPONIVEL:
