@@ -49,19 +49,22 @@ def fmt_br(valor, decimais=0):
 # Para não ficar longo demais, vou focar na integração da Seção 4 logo abaixo:
 
 # =====================================================
-# 4. MAPA VISUAL (INTEGRAÇÃO CORRIGIDA)
+# 4. MAPA VISUAL (CORREÇÃO DE CAMINHO UNIVERSAL)
 # =====================================================
 st.markdown("---")
 st.markdown("### 🗺️ 4. Mapa Visual em Imagem de Satélite")
 
-# Lógica de caminho robusta
-base_dir = os.path.dirname(os.path.abspath(__file__))
-if "pages" in base_dir:
-    pasta_mapas = os.path.abspath(os.path.join(base_dir, "..", "mapas"))
-else:
-    pasta_mapas = os.path.join(base_dir, "mapas")
+# 1. Define o diretório base do script atual
+diretorio_atual = os.path.dirname(os.path.abspath(__file__))
 
-caminho_completo_mapa = os.path.join(pasta_mapas, f"{fazenda_base.upper()}.geojson")
+# 2. Constrói o caminho para a pasta 'mapas' (que está na raiz do projeto)
+# Se o script está em /pages, subimos um nível para encontrar 'mapas'
+pasta_mapas = os.path.abspath(os.path.join(diretorio_atual, "..", "mapas"))
+
+# 3. Define o caminho do arquivo com base na fazenda selecionada
+# Importante: Garantir que fazenda_base existe. Se for nula, usamos um padrão.
+fazenda_alvo = fazenda_base if 'fazenda_base' in locals() else "UIRAPURU"
+caminho_completo_mapa = os.path.join(pasta_mapas, f"{fazenda_alvo.upper()}.geojson")
 
 if FOLIUM_DISPONIVEL:
     if os.path.exists(caminho_completo_mapa):
@@ -69,23 +72,18 @@ if FOLIUM_DISPONIVEL:
             with open(caminho_completo_mapa, "r", encoding="utf-8") as f:
                 dados_geojson = json.load(f)
             
-            # Centro do mapa
-            centro = [-15.0, -50.0] 
-            m = folium.Map(location=centro, zoom_start=14, tiles=None)
-            
+            # (Aqui mantém a sua lógica de renderização folium que já funcionava)
+            m = folium.Map(location=[-15.0, -50.0], zoom_start=14, tiles=None)
             folium.TileLayer(
                 tiles='https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
                 attr='Esri', name='Satélite'
             ).add_to(m)
-            
-            # Adiciona os polígonos
             folium.GeoJson(dados_geojson).add_to(m)
-            
-            # Exibe no Streamlit
             st_folium(m, width=1300, height=550)
         except Exception as e:
-            st.error(f"Erro ao carregar mapa: {e}")
+            st.error(f"Erro ao processar o arquivo geojson: {e}")
     else:
-        st.warning(f"Arquivo {fazenda_base.upper()}.geojson não encontrado na pasta: {pasta_mapas}")
+        st.warning(f"O arquivo não foi encontrado no servidor.")
+        st.info(f"Caminho esperado: {caminho_completo_mapa}")
 else:
-    st.error("Biblioteca folium não instalada.")
+    st.error("Biblioteca folium não encontrada.")
