@@ -67,7 +67,7 @@ def fmt_br(valor, decimais=0):
 # =====================================================
 # 1. SELEÇÃO DA FAZENDA BASE
 # =====================================================
-st.markdown("### 1. Escolha a Fazenda para Iniciar o Planejamento")
+st.markdown("### 🏠 1. Escolha a Fazenda para Iniciar o Planejamento")
 lista_todas_fazendas = sorted(df["Fazenda"].dropna().astype(str).unique())
 fazenda_base = st.selectbox("Selecione a Fazenda Alvo:", lista_todas_fazendas, key="fazenda_base_select")
 
@@ -86,7 +86,7 @@ divisoes_restantes = todas_divisoes_fazenda - divisoes_ja_simuladas
 # 2. FILTROS DA SIMULAÇÃO COM CONTROLE DE PROGRESSO
 # =====================================================
 st.markdown("---")
-st.markdown("### ⚙️ 2. Filtrar Módulos / Divisões")
+st.markdown("### 🔍 2. Filtrar Módulos / Divisões")
 
 col_txt, col_prog = st.columns([1, 3])
 with col_txt:
@@ -138,7 +138,7 @@ if periodo_opcao == "Última avaliação" and not df_filtrado.empty:
 # 3. PARÂMETROS DA SIMULAÇÃO (ENTRADAS GERAIS)
 # =====================================================
 st.markdown("---")
-st.markdown("### 3. Ajustar Parâmetros do Lote e Consumo")
+st.markdown("### ⚙️ 3. Ajustar Parâmetros do Lote e Consumo")
 
 p1, p2, p3, p4 = st.columns(4)
 
