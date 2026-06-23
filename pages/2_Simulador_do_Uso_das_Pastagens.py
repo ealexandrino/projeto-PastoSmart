@@ -169,10 +169,10 @@ with p4:
 # 📊 CÁLCULOS E INDICADORES DO BLOCO ATUAL
 # =====================================================
 
-# 1. Redução do tamanho da fonte dos indicadores
+# CSS para reduzir o tamanho da fonte dos valores (Demanda 1)
 st.markdown("""
     <style>
-    [data-testid="stMetricValue"] { font-size: 18px; }
+    [data-testid="stMetricValue"] { font-size: 16px; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -191,7 +191,7 @@ if not df_filtrado.empty:
         d_area = float(row["Area util"]) if pd.notnull(row["Area util"]) else 0.0
         d_massa_ini = float(row["Massa seca"]) if pd.notnull(row["Massa seca"]) else 0.0
         
-        # Identificar maior massa e sua área
+        # Identificar maior massa (Demanda 3)
         if d_massa_ini > maior_massa:
             maior_massa = d_massa_ini
             divisao_maior_massa = str(row["Divisao"])
@@ -215,24 +215,33 @@ if not df_filtrado.empty:
 
 # Cálculos Finais
 massa_forragem_bloco = (massa_vezes_area / total_area_bloco) if total_area_bloco > 0 else 0.0
+producao_total_ha = taxa_acumulo * periodo_dias
+massa_teto_ponderada = massa_forragem_bloco + producao_total_ha
 tl_ua_ha_bloco = total_ua_bloco / total_area_bloco if total_area_bloco > 0 else 0.0
 tl_cab_ha_bloco = total_cabecas_bloco / total_area_bloco if total_area_bloco > 0 else 0.0
-produtividade_media = (tl_cab_ha_bloco * gmd * periodo_dias) if total_area_bloco > 0 else 0.0
+produtividade_media_bloco = (tl_cab_ha_bloco * gmd * periodo_dias) if total_area_bloco > 0 else 0.0
 
-# Renderização
+# Renderização com todos os indicadores (Antigos + Novos) e Títulos em Negrito
 m1, m2, m3, m4 = st.columns(4)
 with m1:
-    st.metric("Área Total (ha)", f"{fmt_br(total_area_bloco, 2)}")
-    st.metric("Massa Forragem (kg MS/ha)", f"{fmt_br(massa_forragem_bloco, 0)}")
+    st.metric("**Área Total (ha)**", f"{fmt_br(total_area_bloco, 2)}")
+    st.metric("**Massa Forragem (kg MS/ha)**", f"{fmt_br(massa_forragem_bloco, 0)}")
+    st.metric("**Massa Teto Média**", f"{fmt_br(massa_teto_ponderada, 0)} kg MS/ha")
+
 with m2:
-    st.metric("Maior Massa (kg/ha)", f"{fmt_br(maior_massa, 0)}")
-    st.metric("Divisão da Maior Massa", divisao_maior_massa)
+    st.metric("**Maior Massa (kg/ha)**", f"{fmt_br(maior_massa, 0)}")
+    st.metric("**Divisão (Maior Massa)**", divisao_maior_massa)
+    st.metric("**Produção Período**", f"{fmt_br(producao_total_ha, 0)} kg MS/ha")
+
 with m3:
-    st.metric("Área Divisão Maior (ha)", f"{fmt_br(area_divisao_maior_massa, 2)}")
-    st.metric("Capacidade Total (UA)", f"{fmt_br(total_ua_bloco, 1)}")
+    st.metric("**Área Divisão Maior (ha)**", f"{fmt_br(area_divisao_maior_massa, 2)}")
+    st.metric("**Capacidade Total (UA)**", f"{fmt_br(total_ua_bloco, 1)}")
+    st.metric("**Taxa Lotação (UA/ha)**", f"{fmt_br(tl_ua_ha_bloco, 2)}")
+
 with m4:
-    st.metric("Taxa Lotação (UA/ha)", f"{fmt_br(tl_ua_ha_bloco, 2)}")
-    st.metric("Total de Cabeças", f"{fmt_br(total_cabecas_bloco, 0)}")
+    st.metric("**Total de Cabeças**", f"{fmt_br(total_cabecas_bloco, 0)}")
+    st.metric("**Lotação (Cab/ha)**", f"{fmt_br(tl_cab_ha_bloco, 2)}")
+    st.metric("**Produtividade (kg/ha)**", f"{fmt_br(produtividade_media_bloco, 1)}")
 
 # =====================================================
 # BOTÃO DE ADICIONAR AO PLANEJAMENTO
