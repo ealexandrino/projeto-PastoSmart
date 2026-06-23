@@ -177,7 +177,7 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-st.markdown("###4. 📊 Indicadores Consolidados do Bloco Atual")
+st.markdown("##4. 📊 Indicadores Consolidados do Bloco Atual")
 
 total_area_bloco = 0.0
 total_ua_bloco = 0.0
@@ -278,7 +278,7 @@ if st.button("➕ Adicionar Bloco ao Planejamento Temporário", use_container_wi
 # TABELA TEMPORÁRIA ACUMULADA
 # =====================================================
 st.markdown("---")
-st.markdown("###5. 📋 Planejamentos Temporários Acumulados")
+st.markdown("##5. 📋 Planejamentos Temporários Acumulados")
 
 if st.session_state["simulacoes_salvas"]:
     df_temp_all = pd.DataFrame(st.session_state["simulacoes_salvas"])
