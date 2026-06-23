@@ -346,20 +346,18 @@ if st.session_state["simulacoes_salvas"]:
                 st.session_state["simulacoes_salvas"] = [s for s in st.session_state["simulacoes_salvas"] if s["Fazenda"] != fazenda_base]
                 st.rerun()
 
-        # =====================================================
-        # 4. MAPA VISUAL PURO (ERRADICAÇÃO DO ÍCONE "MARK" QUEBRADO)
+       # =====================================================
+        # 4. MAPA VISUAL (CONFIGURADO PARA O SERVIDOR)
         # =====================================================
         st.markdown("---")
         st.markdown("### 🗺️ 4. Mapa Visual em Imagem de Satélite")
+
+        # Procura a pasta 'mapas' na mesma raiz do script
+        pasta_mapas = os.path.join(os.path.dirname(os.path.abspath(__file__)), "mapas")
         
-        # Melhoria: Procura dinamicamente a pasta nos arredores do script. Se não achar, volta pro padrão absoluto.
-        pasta_mapas_relativa = os.path.join(os.path.dirname(__file__), "mapas") if '__file__' in locals() else "mapas"
-        if os.path.exists(pasta_mapas_relativa):
-            pasta_mapas = pasta_mapas_relativa
-        else:
-            pasta_mapas = r"C:\Users\e_ale\Downloads\ProjetoNovo\mapas"
-            
-        caminho_completo_mapa = os.path.join(pasta_mapas, f"{fazenda_base.upper()}.geojson")
+        # Constrói o nome do arquivo (ajuste para .upper() se necessário)
+        nome_arquivo = f"{fazenda_base.upper()}.geojson"
+        caminho_completo_mapa = os.path.join(pasta_mapas, nome_arquivo)
 
         if FOLIUM_DISPONIVEL:
             if os.path.exists(caminho_completo_mapa):
@@ -367,101 +365,60 @@ if st.session_state["simulacoes_salvas"]:
                     with open(caminho_completo_mapa, "r", encoding="utf-8") as f:
                         dados_geojson = json.load(f)
                     
-                    feicoes_limpas = []
-                    coordenadas = []
-                    
-                    for feature in dados_geojson.get('features', []):
-                        geom = feature.get('geometry', {})
-                        tipo_geom = geom.get('type')
-                        
-                        if tipo_geom in ['Polygon', 'MultiPolygon']:
-                            feicoes_limpas.append(feature)
-                            
-                            if tipo_geom == 'Polygon':
-                                for coord in geom['coordinates'][0]:
-                                    coordenadas.append([coord[1], coord[0]])
-                            elif tipo_geom == 'MultiPolygon':
-                                for poly in geom['coordinates']:
-                                    for coord in poly[0]:
-                                        coordenadas.append([coord[1], coord[0]])
-                    
+                    # Processamento das feições (Limpeza de polígonos)
+                    feicoes_limpas = [f for f in dados_geojson.get('features', []) 
+                                     if f.get('geometry', {}).get('type') in ['Polygon', 'MultiPolygon']]
                     dados_geojson['features'] = feicoes_limpas
 
-                    # Melhoria: Proteção robusta contra divisões vazias/erros no cálculo das médias do centro do mapa
-                    if coordenadas and len(coordenadas) > 0:
-                        centro_mapa = [float(np.mean([c[0] for c in coordenadas])), float(np.mean([c[1] for c in coordenadas]))]
-                    else:
-                        centro_mapa = [-10.0, -50.0]
+                    # Coleta de coordenadas para centralização
+                    coordenadas = []
+                    for feature in feicoes_limpas:
+                        geom = feature['geometry']
+                        # Captura as coordenadas do primeiro anel
+                        coords = geom['coordinates'][0] if geom['type'] == 'Polygon' else geom['coordinates'][0][0]
+                        for c in coords:
+                            coordenadas.append([c[1], c[0]])
 
+                    centro_mapa = [np.mean([c[0] for c in coordenadas]), np.mean([c[1] for c in coordenadas])] if coordenadas else [-10.0, -50.0]
+                    
                     m = folium.Map(location=centro_mapa, zoom_start=14, tiles=None)
                     
                     # Camada Base Satélite
                     folium.TileLayer(
                         tiles='https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-                        attr='Esri',
-                        name='Satélite',
-                        overlay=False,
-                        control=True
+                        attr='Esri', name='Satélite', overlay=False, control=True
                     ).add_to(m)
 
+                    # Estilização
                     def estilo_modulo(feature):
-                        nome_div_mapa = str(feature['properties'].get('Divisao') or feature['properties'].get('name') or "").strip()
-                        if nome_div_mapa in divisoes_ja_simuladas:
-                            return {'fillColor': '#22C55E', 'color': '#FFFFFF', 'fillOpacity': 0.4, 'weight': 2}
-                        return {'fillColor': '#EF4444', 'color': '#FFFFFF', 'fillOpacity': 0.2, 'weight': 1}
+                        nome = str(feature['properties'].get('Divisao') or feature['properties'].get('name') or "").strip()
+                        return {'fillColor': '#22C55E' if nome in divisoes_ja_simuladas else '#EF4444', 
+                                'color': '#FFFFFF', 'fillOpacity': 0.4 if nome in divisoes_ja_simuladas else 0.2, 'weight': 2}
 
                     folium.GeoJson(dados_geojson, style_function=estilo_modulo).add_to(m)
 
-                    # Inserção das Caixas Pretas Ampliadas nos Centros dos Piquetes
+                    # Adição de textos (DivIcon)
                     for feature in dados_geojson['features']:
-                        nome_div_mapa = str(feature['properties'].get('Divisao') or feature['properties'].get('name') or "").strip()
+                        nome = str(feature['properties'].get('Divisao') or feature['properties'].get('name') or "").strip()
                         geom = feature['geometry']
+                        pts = geom['coordinates'][0][0] if geom['type'] == 'MultiPolygon' else geom['coordinates'][0]
+                        lat_p, lon_p = np.mean([p[1] for p in pts]), np.mean([p[0] for p in pts])
                         
-                        lat_p, lon_p = None, None
+                        html_texto = f'''<div style="font-family: Arial; font-size: 11px; font-weight: bold; color: white; 
+                                        background-color: rgba(0,0,0,0.85); padding: 2px 6px; border-radius: 3px; 
+                                        border: 1px solid white; white-space: nowrap;">{nome}</div>'''
                         
-                        # Melhoria: Processamento estendido para capturar centros de MultiPolygon também!
-                        if geom['type'] == 'Polygon':
-                            pts = geom['coordinates'][0]
-                            lat_p = np.mean([p[1] for p in pts])
-                            lon_p = np.mean([p[0] for p in pts])
-                        elif geom['type'] == 'MultiPolygon':
-                            # Extrai os pontos estruturais do primeiro polígono contido no agrupamento
-                            pts = geom['coordinates'][0][0]
-                            lat_p = np.mean([p[1] for p in pts])
-                            lon_p = np.mean([p[0] for p in pts])
-                            
-                        if lat_p is not None and lon_p is not None:
-                            html_texto_puro = f'''
-                            <div style="
-                                font-family: Arial, sans-serif;
-                                font-size: 11px; 
-                                font-weight: bold; 
-                                color: white; 
-                                background-color: rgba(0,0,0,0.85); 
-                                padding: 4px 10px; 
-                                min-width: 32px;
-                                border-radius: 4px; 
-                                border: 1px solid #ffffff; 
-                                text-align: center;
-                                white-space: nowrap;
-                                transform: translate(-50%, -50%);
-                            ">{nome_div_mapa}</div>
-                            '''
-                            
-                            folium.Marker(
-                                location=[lat_p, lon_p],
-                                icon=folium.DivIcon(
-                                    html=html_texto_puro,
-                                    icon_size=(0, 0),
-                                    icon_anchor=(0, 0)
-                                )
-                            ).add_to(m)
+                        folium.Marker([lat_p, lon_p], icon=folium.DivIcon(html=html_texto)).add_to(m)
 
                     if coordenadas:
                         m.fit_bounds(coordenadas)
 
-                    st_folium(m, width=1300, height=550, returned_objects=[])
+                    st_folium(m, width=1300, height=550)
+                    
                 except Exception as e:
                     st.error(f"Erro ao processar o mapa: {e}")
             else:
-                st.warning(f"Arquivo não localizado em: {caminho_completo_mapa}")
+                st.error(f"Arquivo não encontrado: **{nome_arquivo}**.")
+                st.write(f"Certifique-se de que o arquivo está na pasta 'mapas' com o nome exato.")
+        else:
+            st.warning("Biblioteca folium não disponível.")
