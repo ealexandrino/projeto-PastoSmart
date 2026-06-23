@@ -484,7 +484,7 @@ if st.session_state["simulacoes_salvas"]:
                     if coordenadas:
                         m.fit_bounds(coordenadas)
 
-                    st_folium(m, width=1300, height=550, returned_objects=[])
+                    st_folium(m, use_container_width=True, height=550, returned_objects=[])
                 except Exception as e:
                     st.error(f"Erro ao processar o mapa: {e}")
             else:
