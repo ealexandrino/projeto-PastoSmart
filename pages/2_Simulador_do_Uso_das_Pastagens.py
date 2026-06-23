@@ -139,27 +139,28 @@ if periodo_opcao == "Última avaliação" and not df_filtrado.empty:
 # =====================================================
 st.markdown("---")
 st.markdown("### 3. Ajustar Parâmetros do Lote e Consumo")
+
 p1, p2, p3, p4 = st.columns(4)
 
 with p1:
-    massa_final = st.number_input("Massa final desejada (kg MS/ha)", value=3000, step=100, key="mf_aj")
-    taxa_acumulo = st.number_input("Taxa de acúmulo (kg MS/ha/dia)", value=40.0, step=1.0, format="%.1f", key="ta_aj")
+    massa_final = st.number_input("**Massa final desejada (kg MS/ha)**", value=3000, step=100, key="mf_aj")
+    taxa_acumulo = st.number_input("**Taxa de acúmulo (kg MS/ha/dia)**", value=40.0, step=1.0, format="%.1f", key="ta_aj")
     
 with p2:
-    periodo_dias = st.number_input("Período da Simulação (dias)", value=30, step=1, key="pd_aj")
-    data_inicio_sim = st.date_input("Data Início", value=date.today(), format="DD/MM/YYYY", key="dt_ini_aj")
+    periodo_dias = st.number_input("**Período da Simulação (dias)**", value=30, step=1, key="pd_aj")
+    data_inicio_sim = st.date_input("**Data Início**", value=date.today(), format="DD/MM/YYYY", key="dt_ini_aj")
     data_fim_calc = data_inicio_sim + timedelta(days=int(periodo_dias))
     st.markdown(f"**Data Fim:** {data_fim_calc.strftime('%d/%m/%Y')}")
 
 with p3:
-    cms = st.number_input("cMS (%PV)", value=2.5, step=0.1, format="%.1f", key="cms_aj")
-    ofertado = st.number_input("Ofertado (n)", value=4.0, step=0.1, format="%.1f", key="of_aj")
+    cms = st.number_input("**cMS (%PV)**", value=2.5, step=0.1, format="%.1f", key="cms_aj")
+    ofertado = st.number_input("**Ofertado (n)**", value=4.0, step=0.1, format="%.1f", key="of_aj")
     oferta = cms * ofertado
     st.markdown(f"**Oferta Forragem:** {fmt_br(oferta, 1)} %PV")
 
 with p4:
-    peso_inicio = st.number_input("Peso início (kg)", value=450, step=10, key="pi_aj")
-    gmd = st.number_input("GMD (kg/dia)", value=0.60, step=0.05, format="%.2f", key="gmd_aj")
+    peso_inicio = st.number_input("**Peso início (kg)**", value=450, step=10, key="pi_aj")
+    gmd = st.number_input("**GMD (kg/dia)**", value=0.60, step=0.05, format="%.2f", key="gmd_aj")
     peso_fim = peso_inicio + (gmd * periodo_dias)
     peso_medio = (peso_inicio + peso_fim) / 2
     st.markdown(f"**Peso Fim:** {fmt_br(peso_fim, 2)} kg")
@@ -176,7 +177,7 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-st.markdown("#### 📊 Indicadores Consolidados do Bloco Atual")
+st.markdown("###4. 📊 Indicadores Consolidados do Bloco Atual")
 
 total_area_bloco = 0.0
 total_ua_bloco = 0.0
@@ -277,7 +278,7 @@ if st.button("➕ Adicionar Bloco ao Planejamento Temporário", use_container_wi
 # TABELA TEMPORÁRIA ACUMULADA
 # =====================================================
 st.markdown("---")
-st.markdown("### 📋 Planejamentos Temporários Acumulados")
+st.markdown("###5. 📋 Planejamentos Temporários Acumulados")
 
 if st.session_state["simulacoes_salvas"]:
     df_temp_all = pd.DataFrame(st.session_state["simulacoes_salvas"])
