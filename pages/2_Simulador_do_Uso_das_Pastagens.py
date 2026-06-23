@@ -349,17 +349,23 @@ if st.session_state["simulacoes_salvas"]:
         # =====================================================
         # 4. MAPA VISUAL PURO (ERRADICAÇÃO DO ÍCONE "MARK" QUEBRADO)
         # =====================================================
+       # ... (seu código anterior)
         st.markdown("---")
         st.markdown("### 🗺️ 4. Mapa Visual em Imagem de Satélite")
         
-        # Define o caminho da pasta 'mapas' baseada na localização do script atual
-        # Isso garante que funcione no GitHub/Streamlit Cloud
-        pasta_mapas = os.path.join(os.path.dirname(os.path.abspath(__file__)), "mapas")
-            
+        # --- COMEÇO DO BLOCO QUE VOCÊ DEVE COLAR ---
+        onde_estou = os.path.dirname(os.path.abspath(__file__))
+        if "pages" in onde_estou:
+            pasta_raiz = os.path.dirname(onde_estou)
+        else:
+            pasta_raiz = onde_estou
+        pasta_mapas = os.path.join(pasta_raiz, "mapas")
         caminho_completo_mapa = os.path.join(pasta_mapas, f"{fazenda_base.upper()}.geojson")
+        # --- FIM DO BLOCO QUE VOCÊ DEVE COLAR ---
 
         if FOLIUM_DISPONIVEL:
             if os.path.exists(caminho_completo_mapa):
+        # ... (o resto do seu código continua aqui)
                 try:
                     with open(caminho_completo_mapa, "r", encoding="utf-8") as f:
                         dados_geojson = json.load(f)
