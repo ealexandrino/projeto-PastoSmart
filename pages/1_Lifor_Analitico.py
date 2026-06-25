@@ -22,13 +22,11 @@ with st.sidebar:
     st.caption("Versão 1.0")
 
 # =====================================================
-# GOOGLE SHEETS
+# GOOGLE SHEETS (Conexão Segura)
 # =====================================================
 
-SHEET_ID = "1DFy0jTJbv5Mv1n-KtJkTeUuz4uXNjp-khKhPZpQ1m6w"
-GID = "853924016"
-
-URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=csv&gid={GID}"
+# Conecta usando as credenciais configuradas no Secrets
+conn = st.connection("gsheets", type="gsheets")
 
 # =====================================================
 # CARREGAMENTO
@@ -36,7 +34,8 @@ URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=csv&gid=
 
 @st.cache_data
 def carregar_dados():
-    df = pd.read_csv(URL)
+    # Lê a planilha usando a conexão segura
+    df = conn.read(spreadsheet="1DFy0jTJbv5Mv1n-KtJkTeUuz4uXNjp-khKhPZpQ1m6w", worksheet=853924016)
 
     # remove linhas vazias
     df = df.dropna(how="all")
@@ -50,7 +49,6 @@ def carregar_dados():
 
     # ------------------------------
     # Área e Área útil
-    # Ex: 22,57 -> 22.57
     # ------------------------------
     for campo in ["Area", "Area util"]:
         if campo in df.columns:
@@ -67,7 +65,6 @@ def carregar_dados():
 
     # ------------------------------
     # Massa seca e Massa total
-    # Ex: 3,700 -> 3700
     # ------------------------------
     for campo in ["Massa seca", "Massa total"]:
         if campo in df.columns:
@@ -92,116 +89,53 @@ df = carregar_dados()
 
 st.subheader("Filtros")
 
-# CORRIGIDO: alterado co17 para col7
 col1, col2, col3, col4, col5, col6, col7 = st.columns(7)
 
 with col1:
-    fazendas = sorted(
-        df["Fazenda"]
-        .dropna()
-        .astype(str)
-        .unique()
-    )
-    fazenda = st.selectbox(
-        "Fazenda",
-        fazendas
-    )
+    fazendas = sorted(df["Fazenda"].dropna().astype(str).unique())
+    fazenda = st.selectbox("Fazenda", fazendas)
 
 df_filtrado = df[df["Fazenda"].astype(str) == fazenda]
 
 with col2:
-    periodo = st.selectbox(
-        "Período",
-        [
-            "Última avaliação",
-            "Todas as avaliações",
-            "Personalizado"
-        ]
-    )
+    periodo = st.selectbox("Período", ["Última avaliação", "Todas as avaliações", "Personalizado"])
 
-# Segurança para o caso de df_filtrado estar vazio
 if df_filtrado.empty:
     data_inicial = pd.Timestamp.now().date()
     data_final = pd.Timestamp.now().date()
-    with col3:
-        st.write("Sem dados")
+    with col3: st.write("Sem dados")
 else:
     if periodo == "Última avaliação":
         data_final = df_filtrado["Data avaliacao"].max().date()
         data_inicial = data_final
-        with col3:
-            st.write(f"📅 {data_final.strftime('%d/%m/%Y')}")
-
+        with col3: st.write(f"📅 {data_final.strftime('%d/%m/%Y')}")
     elif periodo == "Todas as avaliações":
         data_inicial = df_filtrado["Data avaliacao"].min().date()
         data_final = df_filtrado["Data avaliacao"].max().date()
-        with col3:
-            st.write("Todas")
-
+        with col3: st.write("Todas")
     else:
-        with col2:
-            data_inicial = st.date_input(
-                "Data Inicial",
-                value=df_filtrado["Data avaliacao"].min().date()
-            )
-        with col3:
-            data_final = st.date_input(
-                "Data Final",
-                value=df_filtrado["Data avaliacao"].max().date()
-            )
+        with col2: data_inicial = st.date_input("Data Inicial", value=df_filtrado["Data avaliacao"].min().date())
+        with col3: data_final = st.date_input("Data Final", value=df_filtrado["Data avaliacao"].max().date())
 
-df_filtrado = df_filtrado[
-    (df_filtrado["Data avaliacao"].dt.date >= data_inicial) &
-    (df_filtrado["Data avaliacao"].dt.date <= data_final)
-]
+df_filtrado = df_filtrado[(df_filtrado["Data avaliacao"].dt.date >= data_inicial) & (df_filtrado["Data avaliacao"].dt.date <= data_final)]
 
 with col4:
-    retiros = ["Todos"] + sorted(
-        df_filtrado["Retiro"]
-        .dropna()
-        .astype(str)
-        .unique()
-        .tolist()
-    )
-    retiro = st.selectbox(
-        "Retiro",
-        retiros
-    )
-
-if retiro != "Todos":
-    df_filtrado = df_filtrado[df_filtrado["Retiro"].astype(str) == retiro]
+    retiros = ["Todos"] + sorted(df_filtrado["Retiro"].dropna().astype(str).unique().tolist())
+    retiro = st.selectbox("Retiro", retiros)
+if retiro != "Todos": df_filtrado = df_filtrado[df_filtrado["Retiro"].astype(str) == retiro]
 
 with col5:
-    modulos = ["Todos"] + sorted(
-        df_filtrado["Modulo"]
-        .dropna()
-        .astype(str)
-        .unique()
-        .tolist()
-    )
-    modulo = st.selectbox(
-        "Modulo",
-        modulos
-    )
-
-if modulo != "Todos":
-    df_filtrado = df_filtrado[df_filtrado["Modulo"].astype(str) == modulo]
+    modulos = ["Todos"] + sorted(df_filtrado["Modulo"].dropna().astype(str).unique().tolist())
+    modulo = st.selectbox("Modulo", modulos)
+if modulo != "Todos": df_filtrado = df_filtrado[df_filtrado["Modulo"].astype(str) == modulo]
 
 with col6:
-    divisoes = ["Todas"] + sorted(
-        df_filtrado["Divisao"]
-        .dropna()
-        .astype(str)
-        .unique()
-        .tolist()
-    )
-    divisao = st.selectbox(
-        "Divisão",
-        divisoes
-    )
+    divisoes = ["Todas"] + sorted(df_filtrado["Divisao"].dropna().astype(str).unique().tolist())
+    divisao = st.selectbox("Divisão", divisoes)
+if divisao != "Todas": df_filtrado = df_filtrado[df_filtrado["Divisao"].astype(str) == divisao]
 
-if divisao != "Todas":
-    df_filtrado = df_filtrado[df_filtrado["Divisao"].astype(str) == divisao]
+# ... [O restante do seu código de filtros avançados e gráficos permanece igual] ...
+# (Cole aqui o restante do código que você já tinha após os Filtros de Divisão)
 
 
 # =====================================================
