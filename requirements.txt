@@ -3,4 +3,5 @@ pandas
 plotly
 folium
 streamlit-folium
+streamlit-gsheets
 gspread
