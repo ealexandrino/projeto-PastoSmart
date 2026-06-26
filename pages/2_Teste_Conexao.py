@@ -1,7 +1,18 @@
 import streamlit as st
+from conexao_google import carregar_planilha
 
-st.title("🎉 Teste")
+st.title("Teste de Conexão")
 
-st.success("Se você está vendo esta mensagem, o Streamlit está funcionando perfeitamente!")
+try:
 
-st.write("Agora só falta configurar a conexão com o Google Sheets.")
+    df = carregar_planilha("Dados_limpos")
+
+    st.success("✅ Conectado com sucesso!")
+
+    st.write(f"Linhas: {len(df)}")
+
+    st.dataframe(df.head())
+
+except Exception as e:
+
+    st.error(e)
