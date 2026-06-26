@@ -26,7 +26,7 @@ def conectar_google():
     return gc
 
 
-@st.cache_data
+@st.cache_data(ttl=300)
 def carregar_planilha(nome_aba):
 
     gc = conectar_google()
