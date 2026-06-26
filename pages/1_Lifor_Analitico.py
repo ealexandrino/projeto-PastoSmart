@@ -2,6 +2,8 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 
+from conexao_google import carregar_planilha
+
 # =====================================================
 # CONFIGURAÇÃO DA PÁGINA
 # =====================================================
@@ -21,67 +23,44 @@ with st.sidebar:
     st.markdown("---")
     st.caption("Versão 1.0")
 
-# =====================================================
-# GOOGLE SHEETS (Conexão Segura)
-# =====================================================
-
-# Conecta usando as credenciais configuradas no Secrets
-conn = st.connection("gsheets", type="gsheets")
 
 # =====================================================
-# CARREGAMENTO
+# CARREGAMENTO DOS DADOS
 # =====================================================
 
-@st.cache_data
-def carregar_dados():
-    # Lê a planilha usando a conexão segura
-    df = conn.read(spreadsheet="1DFy0jTJbv5Mv1n-KtJkTeUuz4uXNjp-khKhPZpQ1m6w", worksheet=853924016)
+df = carregar_planilha("Dados_limpos")
 
-    # remove linhas vazias
-    df = df.dropna(how="all")
+# remove linhas vazias
+df = df.dropna(how="all")
 
-    # data
-    df["Data avaliacao"] = pd.to_datetime(
-        df["Data avaliacao"],
-        format="%d/%m/%Y",
-        errors="coerce"
-    )
+# Data
+df["Data avaliacao"] = pd.to_datetime(
+    df["Data avaliacao"],
+    format="%d/%m/%Y",
+    errors="coerce"
+)
 
-    # ------------------------------
-    # Área e Área útil
-    # ------------------------------
-    for campo in ["Area", "Area util"]:
-        if campo in df.columns:
-            df[campo] = (
-                df[campo]
-                .astype(str)
-                .str.strip()
-                .str.replace(",", ".", regex=False)
-            )
-            df[campo] = pd.to_numeric(
-                df[campo],
-                errors="coerce"
-            )
+# Área
+for campo in ["Area", "Area util"]:
+    if campo in df.columns:
+        df[campo] = (
+            df[campo]
+            .astype(str)
+            .str.strip()
+            .str.replace(",", ".", regex=False)
+        )
+        df[campo] = pd.to_numeric(df[campo], errors="coerce")
 
-    # ------------------------------
-    # Massa seca e Massa total
-    # ------------------------------
-    for campo in ["Massa seca", "Massa total"]:
-        if campo in df.columns:
-            df[campo] = (
-                df[campo]
-                .astype(str)
-                .str.strip()
-                .str.replace(",", "", regex=False)
-            )
-            df[campo] = pd.to_numeric(
-                df[campo],
-                errors="coerce"
-            )
-
-    return df
-
-df = carregar_dados()
+# Massa
+for campo in ["Massa seca", "Massa total"]:
+    if campo in df.columns:
+        df[campo] = (
+            df[campo]
+            .astype(str)
+            .str.strip()
+            .str.replace(",", "", regex=False)
+        )
+        df[campo] = pd.to_numeric(df[campo], errors="coerce")
 
 # =====================================================
 # FILTROS
